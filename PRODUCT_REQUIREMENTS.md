@@ -81,7 +81,10 @@ The project should communicate:
 
 ### Core Technologies
 - Flask
-- Flask REST API
+- Flask-Smorest (OpenAPI/Swagger docs, request validation)
+- marshmallow (serialization and schema validation)
+- Flask-SQLAlchemy + Flask-Migrate
+- Flask-JWT-Extended
 - Celery
 - Redis
 
@@ -179,15 +182,22 @@ The MVP should prioritize architecture quality and backend workflows over UI com
 
 ---
 
-## Feature 1 — Authentication
+## Feature 1 — Authentication ✅ Complete
 
 ### Requirements
 Users should be able to:
 
-- Register
-- Login
-- Logout
-- Maintain sessions
+- Register ✅
+- Login ✅
+- Logout ✅
+- Maintain sessions ✅
+
+### Implementation Notes
+- JWT-based auth using Flask-JWT-Extended
+- Access token + refresh token pattern
+- Password hashing via Werkzeug
+- Protected routes via `@jwt_required()` decorator
+- Endpoints: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/refresh`
 
 ### Future Enhancements
 - OAuth
@@ -197,24 +207,32 @@ Users should be able to:
 
 ---
 
-## Feature 2 — Document Upload
+## Feature 2 — Document Upload ✅ Complete
 
 ### Requirements
 Users should be able to:
 
-- Upload PDFs
-- Upload text documents
-- View uploaded documents
-- Delete documents
+- Upload PDFs ✅
+- Upload text documents ✅
+- View uploaded documents ✅
+- Delete documents ✅
+
+### Implementation Notes
+- File types supported: PDF, TXT, DOCX
+- Max file size: 50MB
+- Files stored in Docker volume (`uploads_data`)
+- Document status lifecycle: `pending → processing → ready → failed`
+- Endpoints: `POST /api/documents`, `GET /api/documents`, `GET /api/documents/<id>`, `DELETE /api/documents/<id>`
+- All routes JWT-protected
 
 ### Constraints
-- File size limits
-- Allowed MIME types
+- File size limit: 50MB
+- Allowed MIME types: PDF, plain text, DOCX
 - Virus scanning (future)
 
 ---
 
-## Feature 3 — Document Processing Pipeline
+## Feature 3 — Document Processing Pipeline 🔄 In Progress
 
 ### Requirements
 Uploaded documents should:
@@ -568,27 +586,29 @@ The project should position the developer as experienced in:
 
 # Initial Development Roadmap
 
-# Week 1
+# Week 1 ✅ Complete
 
 ## Goals
-- Create repository
-- Create project structure
-- Configure Docker Compose
-- Configure PostgreSQL
-- Configure Redis
-- Configure Flask API
-- Configure React frontend
+- Create repository ✅
+- Create project structure ✅
+- Configure Docker Compose ✅
+- Configure PostgreSQL ✅
+- Configure Redis ✅
+- Configure Flask API ✅
+- Configure React frontend (deferred to Week 2)
 
 ---
 
-# Week 2
+# Week 2 🔄 In Progress
 
 ## Goals
-- Integrate Ollama
-- Implement embeddings pipeline
-- Implement document upload
+- Implement authentication ✅
+- Implement document upload ✅
+- Integrate Flask-Smorest + OpenAPI docs ✅
+- Implement document processing pipeline (Celery + embeddings)
 - Implement document chunking
 - Store vectors in pgvector
+- Integrate Ollama
 
 ---
 
@@ -605,13 +625,26 @@ The project should position the developer as experienced in:
 # Week 4
 
 ## Goals
-- Add authentication
 - Add monitoring
 - Add logging
 - Add retry mechanisms
 - Improve documentation
 - Create architecture diagrams
 - Polish README
+- Scaffold React frontend
+
+---
+
+# Confirmed Architectural Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Vector storage | pgvector (PostgreSQL extension) | Reduces infrastructure complexity — no separate vector DB needed |
+| API framework | Flask-Smorest | Auto-generates OpenAPI docs, marshmallow validation, clean blueprint structure |
+| Auth strategy | JWT (access + refresh tokens) | Stateless, scalable, enterprise-standard |
+| Local dev | Docker Compose | Zero-setup, consistent across machines, close to production |
+| Embedding model | TBD (nomic-embed-text or bge-small via Ollama) | Decision pending Feature 3 implementation |
+| LLM for chat | TBD (Llama 3 8B or Mistral 7B via Ollama) | Decision pending Feature 5 implementation |
 
 ---
 
