@@ -3,6 +3,7 @@ import os
 
 class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret-key")
     DEBUG = False
     TESTING = False
 
