@@ -6,6 +6,11 @@ class BaseConfig:
     DEBUG = False
     TESTING = False
 
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL", "postgresql://bennu:bennu@localhost:5432/bennu"
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
@@ -14,6 +19,9 @@ class DevelopmentConfig(BaseConfig):
 class TestingConfig(BaseConfig):
     TESTING = True
     DEBUG = True
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "TEST_DATABASE_URL", "postgresql://bennu:bennu@localhost:5432/bennu_test"
+    )
 
 
 class ProductionConfig(BaseConfig):
