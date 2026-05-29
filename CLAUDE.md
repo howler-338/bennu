@@ -101,7 +101,7 @@ docker compose logs backend -f
 ```
 bennu/
 ├── backend/          # Flask API
-├── frontend/         # React + Vite (coming soon)
+├── frontend/         # React + Vite
 ├── infrastructure/   # Docker, Terraform, Kubernetes
 ├── docs/
 └── screenshots/
@@ -112,17 +112,41 @@ bennu/
 ```
 backend/
 ├── app/
-│   ├── api/          # Health check and shared API utilities
+│   ├── admin/        # Admin dashboard endpoints
+│   ├── api/          # Health check
 │   ├── auth/         # JWT authentication
-│   ├── chat/         # RAG chat (coming soon)
+│   ├── chat/         # RAG chat
 │   ├── documents/    # Document upload and management
-│   ├── embeddings/   # Embedding pipeline (coming soon)
-│   ├── rag/          # RAG pipeline (coming soon)
-│   ├── services/     # Shared services
-│   ├── workers/      # Celery workers (coming soon)
+│   ├── embeddings/   # DocumentChunk model + pgvector
+│   ├── search/       # Semantic search
+│   ├── services/     # text_extractor, chunker, embedder, llm
+│   ├── workers/      # Celery tasks (document processing)
 │   └── config/       # Environment-based config
 ├── migrations/       # Alembic migrations
 └── tests/
+```
+
+## Frontend Structure
+
+```
+frontend/
+├── src/
+│   ├── api/          # Typed API client (fetch wrappers)
+│   ├── components/   # Shared UI components
+│   ├── pages/        # Route-level page components
+│   └── store/        # Global state (auth token, etc.)
+├── index.html
+└── vite.config.ts
+```
+
+## Frontend Dev
+
+```bash
+# Start frontend dev server (runs outside Docker on host)
+cd frontend && npm run dev   # http://localhost:5173
+
+# Build for production
+cd frontend && npm run build
 ```
 
 ## Environment Variables
@@ -131,9 +155,31 @@ Copy `.env.example` to `.env` and fill in values. Never commit `.env`.
 
 ## Feature Status
 
+### Backend (complete)
 - Feature 1 — Authentication ✅
 - Feature 2 — Document Upload ✅
-- Feature 3 — Document Processing Pipeline 🔄
-- Feature 4 — Semantic Search
-- Feature 5 — RAG Chat
-- Feature 6 — Admin Dashboard
+- Feature 3 — Document Processing Pipeline ✅
+- Feature 4 — Semantic Search ✅
+- Feature 5 — RAG Chat ✅
+- Feature 6 — Admin Dashboard ✅
+
+### Frontend (in progress)
+- Login / Register
+- Document upload + list with status polling
+- Semantic search UI
+- RAG chat UI
+
+## Roadmap
+
+### Tests
+- Unit tests for `services/` (chunker, text_extractor, embedder)
+- Integration tests for all API endpoints (pytest + real DB)
+- Celery task tests with mocked Ollama
+
+### Production Hardening
+- Swap Flask dev server for Gunicorn (`gunicorn app:create_app()`)
+- Rate limiting on auth and upload endpoints (Flask-Limiter)
+- Celery beat scheduler for retrying stuck PROCESSING documents
+- Structured JSON logging
+- Health check endpoints for Kubernetes liveness/readiness probes
+- `.env.example` with all required variables documented
