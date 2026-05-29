@@ -1,5 +1,7 @@
 from marshmallow import Schema, fields, validate
 
+from app.auth.models import UserRole
+
 
 class RegisterSchema(Schema):
     email = fields.Email(required=True)
@@ -15,6 +17,7 @@ class UserSchema(Schema):
     id = fields.String(dump_only=True)
     email = fields.Email(dump_only=True)
     is_active = fields.Boolean(dump_only=True)
+    role = fields.Enum(UserRole, by_value=True, dump_only=True)
     created_at = fields.DateTime(dump_only=True)
 
 

@@ -1,5 +1,6 @@
 from flask import Flask
 
+from app.commands import make_admin_command
 from app.config.settings import get_config
 from app.extensions import db, jwt, migrate, smorest_api
 from app.workers.celery_app import celery_init_app
@@ -12,6 +13,7 @@ def create_app(env: str = None) -> Flask:
     register_extensions(app)
     register_blueprints(app)
     celery_init_app(app)
+    app.cli.add_command(make_admin_command)
 
     return app
 
@@ -24,6 +26,7 @@ def register_extensions(app: Flask) -> None:
 
 
 def register_blueprints(app: Flask) -> None:
+    from app.admin.routes import admin_bp
     from app.api.health import health_bp
     from app.auth.routes import auth_bp
     from app.chat.routes import chat_bp
@@ -31,6 +34,7 @@ def register_blueprints(app: Flask) -> None:
     from app.search.routes import search_bp
     import app.embeddings.models  # noqa: ensure DocumentChunk is in SQLAlchemy metadata
 
+    smorest_api.register_blueprint(admin_bp)
     smorest_api.register_blueprint(health_bp)
     smorest_api.register_blueprint(auth_bp)
     smorest_api.register_blueprint(chat_bp)
