@@ -4,7 +4,8 @@ from flask import Flask, send_from_directory
 
 from app.commands import make_admin_command
 from app.config.settings import get_config
-from app.extensions import db, jwt, migrate, smorest_api
+from app.extensions import db, jwt, limiter, migrate, smorest_api
+from app.logging_config import configure_logging
 from app.workers.celery_app import celery_init_app
 
 
@@ -12,6 +13,7 @@ def create_app(env: str = None) -> Flask:
     app = Flask(__name__)
     app.config.from_object(get_config(env))
 
+    configure_logging(debug=app.config.get("DEBUG", False))
     register_extensions(app)
     register_blueprints(app)
     celery_init_app(app)
@@ -40,6 +42,7 @@ def register_extensions(app: Flask) -> None:
     migrate.init_app(app, db)
     jwt.init_app(app)
     smorest_api.init_app(app)
+    limiter.init_app(app)
 
 
 def register_blueprints(app: Flask) -> None:

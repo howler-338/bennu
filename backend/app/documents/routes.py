@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 
 from app.documents.models import Document, DocumentStatus
 from app.documents.schemas import DocumentListSchema, DocumentSchema, DocumentUploadedSchema, MessageSchema
-from app.extensions import db
+from app.extensions import db, limiter
 
 documents_bp = Blueprint("documents", __name__, url_prefix="/api/documents", description="Document management")
 
@@ -21,6 +21,7 @@ def _allowed_file(filename: str) -> bool:
 
 @documents_bp.post("")
 @jwt_required()
+@limiter.limit("20 per minute")
 @documents_bp.response(201, DocumentUploadedSchema)
 def upload_document():
     if "file" not in request.files:

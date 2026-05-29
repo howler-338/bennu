@@ -1,3 +1,23 @@
+x-celery-common: &celery-common
+  build:
+    context: ./backend
+  environment:
+    FLASK_ENV: development
+    SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+    JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-key}
+    DATABASE_URL: postgresql://bennu:bennu@postgres:5432/bennu
+    REDIS_URL: redis://redis:6379/0
+    OLLAMA_HOST: http://ollama:11434
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - ./backend:/app
+    - uploads_data:/app/uploads
+  restart: unless-stopped
+
 services:
 
   backend:
@@ -25,27 +45,12 @@ services:
     restart: unless-stopped
 
   celery_worker:
-    build:
-      context: ./backend
+    <<: *celery-common
     command: celery -A make_celery:celery_app worker --loglevel=info
-    environment:
-      FLASK_ENV: development
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-key}
-      DATABASE_URL: postgresql://bennu:bennu@postgres:5432/bennu
-      REDIS_URL: redis://redis:6379/0
-      OLLAMA_HOST: http://ollama:11434
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - uploads_data:/app/uploads
-    restart: unless-stopped
 
-  # frontend: enabled once Vite app is scaffolded
+  celery_beat:
+    <<: *celery-common
+    command: celery -A make_celery:celery_app beat --loglevel=info
 
   postgres:
     image: pgvector/pgvector:pg16

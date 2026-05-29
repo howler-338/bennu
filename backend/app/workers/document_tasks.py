@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from celery import shared_task
 
 from app.documents.models import Document, DocumentStatus
@@ -45,3 +47,18 @@ def process_document(self, document_id: str):
                 doc.status = DocumentStatus.FAILED
                 db.session.commit()
             raise
+
+
+@shared_task
+def retry_stuck_documents():
+    """Re-queue documents stuck in PROCESSING for more than 10 minutes."""
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+    stuck = Document.query.filter(
+        Document.status == DocumentStatus.PROCESSING,
+        Document.updated_at < cutoff,
+    ).all()
+    for doc in stuck:
+        doc.status = DocumentStatus.PENDING
+        db.session.commit()
+        process_document.delay(str(doc.id))
+    return len(stuck)

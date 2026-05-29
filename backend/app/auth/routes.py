@@ -1,4 +1,3 @@
-from flask import jsonify
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -16,12 +15,13 @@ from app.auth.schemas import (
     TokenSchema,
     UserSchema,
 )
-from app.extensions import db
+from app.extensions import db, limiter
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth", description="Authentication")
 
 
 @auth_bp.post("/register")
+@limiter.limit("5 per minute")
 @auth_bp.arguments(RegisterSchema)
 @auth_bp.response(201, TokenSchema)
 def register(data):
@@ -43,6 +43,7 @@ def register(data):
 
 
 @auth_bp.post("/login")
+@limiter.limit("10 per minute")
 @auth_bp.arguments(LoginSchema)
 @auth_bp.response(200, TokenSchema)
 def login(data):

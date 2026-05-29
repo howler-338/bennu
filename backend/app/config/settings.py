@@ -27,6 +27,9 @@ class BaseConfig:
     EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
     CHAT_MODEL = os.getenv("CHAT_MODEL", "llama3.2:3b")
 
+    RATELIMIT_STORAGE_URI = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    RATELIMIT_HEADERS_ENABLED = True
+
     API_TITLE = "Bennu API"
     API_VERSION = "v1"
     OPENAPI_VERSION = "3.0.3"
@@ -47,6 +50,7 @@ class TestingConfig(BaseConfig):
     )
     CELERY_BROKER_URL = "memory://"
     CELERY_RESULT_BACKEND = "cache+memory://"
+    RATELIMIT_ENABLED = False
 
 
 class ProductionConfig(BaseConfig):
