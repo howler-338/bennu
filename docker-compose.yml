@@ -19,6 +19,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - uploads_data:/app/uploads
     restart: unless-stopped
 
   # celery_worker: enabled once app.workers.celery_app is wired up
@@ -66,3 +67,4 @@ volumes:
   postgres_data:
   redis_data:
   ollama_data:
+  uploads_data:

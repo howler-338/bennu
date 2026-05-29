@@ -23,6 +23,8 @@ def register_extensions(app: Flask) -> None:
 def register_blueprints(app: Flask) -> None:
     from app.api.health import health_bp
     from app.auth.routes import auth_bp
+    from app.documents.routes import documents_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(documents_bp)

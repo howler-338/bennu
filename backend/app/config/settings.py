@@ -12,6 +12,9 @@ class BaseConfig:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(os.path.dirname(__file__), "../../uploads"))
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
