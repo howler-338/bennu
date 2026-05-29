@@ -1,145 +1,657 @@
-# Product Requirements Document — Bennu
+# Bennu — Product Requirements Document (PRD)
 
-> **Status:** Draft  
-> **Last updated:** 2026-05-29  
-> **Owner:** TBD
+## Project Overview
 
----
+Bennu is an enterprise-style AI knowledge platform designed to demonstrate modern cloud-native architecture, Retrieval-Augmented Generation (RAG), vector search, asynchronous document processing, and self-hosted AI inference using Ollama.
 
-## 1. Overview
+The platform is intended to serve as:
 
-Bennu is an enterprise AI knowledge platform that gives organizations a private, self-hosted way to query and reason over their internal knowledge base. It combines retrieval-augmented generation (RAG), vector search, and on-premise LLM inference via Ollama — keeping sensitive data off third-party APIs.
+- A flagship consulting portfolio project
+- A production-style architecture showcase
+- A future SaaS foundation
+- A demonstration of scalable AI infrastructure design
 
----
+The project emphasizes:
 
-## 2. Problem Statement
-
-Enterprise teams struggle to extract value from scattered internal knowledge (docs, wikis, code, tickets). Existing solutions either require sending data to third-party LLM APIs (privacy/compliance risk) or demand significant ML infrastructure expertise to self-host.
-
----
-
-## 3. Goals
-
-- Enable employees to query internal knowledge using natural language
-- Keep all data and inference on-premise (no external LLM API calls required)
-- Deliver accurate, cited answers grounded in source documents
-- Be deployable by a small infrastructure team without ML expertise
+- AI cost optimization
+- Self-hosted inference
+- Privacy-first architecture
+- Modular backend services
+- Enterprise-ready system design
+- Cloud-native deployment practices
 
 ---
 
-## 4. Non-Goals
+# Core Objectives
 
-- Real-time data ingestion (initial version is batch/scheduled)
-- Consumer-facing product (enterprise B2B only)
-- Fine-tuning or training models from scratch
-- Replacing a dedicated search engine (Elasticsearch, etc.) for structured queries
+## Primary Goals
 
----
+### 1. Demonstrate Senior Architecture Skills
+The platform should showcase:
 
-## 5. Users
+- Distributed system thinking
+- Clean service boundaries
+- Async processing pipelines
+- Scalable infrastructure design
+- Reliability engineering concepts
+- AI systems integration
+- Production deployment readiness
 
-| Persona | Description | Primary Need |
-|---------|-------------|--------------|
-| Knowledge Worker | Employee querying internal docs, wikis, runbooks | Fast, accurate answers with source citations |
-| IT / Infra Admin | Deploys and maintains the platform | Simple setup, monitoring, access control |
-| Content Owner | Uploads and manages knowledge sources | Control over what gets indexed and who can query it |
+### 2. Demonstrate AI Integration Expertise
+The platform should demonstrate:
 
----
+- Retrieval-Augmented Generation (RAG)
+- Vector search workflows
+- Embedding pipelines
+- Local LLM orchestration
+- Hybrid AI architecture possibilities
+- Semantic document retrieval
 
-## 6. Requirements
+### 3. Demonstrate Enterprise Readiness
+The project should communicate:
 
-### 6.1 Functional Requirements
-
-#### Ingestion
-- [ ] Ingest documents from common formats: PDF, Markdown, DOCX, plain text
-- [ ] Ingest from common sources: local filesystem, S3-compatible storage, Confluence, Notion
-- [ ] Chunk documents with configurable overlap and chunk size
-- [ ] Generate and store embeddings in a vector database
-
-#### Retrieval
-- [ ] Semantic search over ingested content via vector similarity
-- [ ] Hybrid search (vector + keyword) with configurable weights
-- [ ] Metadata filtering (date range, source, tags, department)
-- [ ] Return top-K results with relevance scores
-
-#### Generation
-- [ ] Route retrieved context + user query to a local Ollama model
-- [ ] Support swappable models (Llama, Mistral, Gemma, etc.)
-- [ ] Stream responses to the client
-- [ ] Include source citations with every answer
-
-#### Access & Auth
-- [ ] Role-based access control (admin, user, read-only)
-- [ ] SSO integration (SAML / OIDC)
-- [ ] Per-collection access permissions
-
-#### API
-- [ ] REST API for query and ingestion
-- [ ] Webhook support for ingestion pipeline triggers
-
-#### UI
-- [ ] Chat interface for natural language queries
-- [ ] Source viewer (view the source chunk that grounded each answer)
-- [ ] Admin dashboard: ingestion status, model health, usage stats
-
-### 6.2 Non-Functional Requirements
-
-| Category | Requirement |
-|----------|-------------|
-| Latency | P95 query response < 5s for typical document corpus |
-| Scalability | Support corpora up to 10M document chunks |
-| Availability | 99.5% uptime target for query path |
-| Privacy | No data leaves the deployment environment |
-| Observability | Structured logs, metrics endpoint (Prometheus-compatible) |
-| Deployment | Docker Compose for single-node; Helm chart for Kubernetes |
+- Scalability
+- Security awareness
+- Cost optimization
+- Observability
+- Deployment maturity
+- Infrastructure automation
 
 ---
 
-## 7. Architecture Snapshot
+# Technology Stack
 
+## Frontend
+
+### Core Technologies
+- React
+- Vite
+- TypeScript
+- Tailwind CSS
+
+### Future Enhancements
+- Zustand or Redux
+- React Query
+- Component library
+- Dark mode support
+
+---
+
+## Backend
+
+### Core Technologies
+- Flask
+- Flask REST API
+- Celery
+- Redis
+
+### Responsibilities
+- API gateway
+- Authentication
+- Chat orchestration
+- Document management
+- RAG coordination
+- Model abstraction layer
+- Background job management
+
+---
+
+## Database
+
+### Primary Database
+- PostgreSQL
+
+### Vector Storage
+- pgvector
+
+### Responsibilities
+- User data
+- Metadata
+- Document indexing
+- Embedding storage
+- Conversation history
+- Audit logs
+
+---
+
+## AI Infrastructure
+
+### Local Inference
+- Ollama
+
+### Suggested Models
+#### Chat Models
+- Llama 3 8B
+- Mistral 7B
+- Phi-3
+
+#### Embedding Models
+- nomic-embed-text
+- bge-small
+- mxbai-embed-large
+
+---
+
+## Infrastructure
+
+### Local Development
+- Docker
+- Docker Compose
+
+### Production Infrastructure (Future)
+- Kubernetes
+- Terraform
+- GitHub Actions
+
+---
+
+# High-Level Architecture
+
+```text
+[ React Frontend ]
+        |
+        v
+[ Flask API Gateway ]
+        |
+        +--> Auth Service
+        |
+        +--> Document Service
+        |
+        +--> Chat Service
+        |
+        +--> RAG Pipeline
+        |
+        +--> Celery Workers
+                  |
+                  +--> Embedding Jobs
+                  +--> OCR Jobs
+                  +--> Chunking Jobs
+                  +--> Indexing Jobs
 ```
-User
- │
- ▼
-API Layer (REST / WebSocket)
- │
- ├─► Retrieval Engine
- │      ├─ Vector DB (e.g., Qdrant / Weaviate / pgvector)
- │      └─ Keyword Index (optional)
- │
- └─► Generation Engine
-        └─ Ollama (local LLM inference)
 
-Ingestion Pipeline (async)
- └─ Document Loader → Chunker → Embedder → Vector DB
+---
+
+# Product Features
+
+# MVP Scope
+
+The MVP should prioritize architecture quality and backend workflows over UI complexity.
+
+---
+
+## Feature 1 — Authentication
+
+### Requirements
+Users should be able to:
+
+- Register
+- Login
+- Logout
+- Maintain sessions
+
+### Future Enhancements
+- OAuth
+- SSO
+- Multi-factor authentication
+- Enterprise identity providers
+
+---
+
+## Feature 2 — Document Upload
+
+### Requirements
+Users should be able to:
+
+- Upload PDFs
+- Upload text documents
+- View uploaded documents
+- Delete documents
+
+### Constraints
+- File size limits
+- Allowed MIME types
+- Virus scanning (future)
+
+---
+
+## Feature 3 — Document Processing Pipeline
+
+### Requirements
+Uploaded documents should:
+
+1. Be parsed
+2. Be chunked
+3. Generate embeddings
+4. Store vectors in pgvector
+5. Become searchable
+
+### Processing Requirements
+- Async processing using Celery
+- Retry mechanisms
+- Job status tracking
+- Failure handling
+- Queue monitoring
+
+---
+
+## Feature 4 — Semantic Search
+
+### Requirements
+Users should be able to:
+
+- Search documents semantically
+- Retrieve relevant chunks
+- Filter search results
+- View similarity scores
+
+### Technical Requirements
+- Vector similarity search
+- Embedding generation
+- Search ranking
+
+---
+
+## Feature 5 — RAG Chat
+
+### Requirements
+Users should be able to:
+
+- Ask questions about uploaded documents
+- Receive contextual answers
+- Receive cited responses
+- Maintain conversation history
+
+### System Requirements
+- Context retrieval
+- Prompt construction
+- Model routing
+- Token optimization
+- Streaming responses (future)
+
+---
+
+## Feature 6 — Admin Dashboard
+
+### Requirements
+Administrators should be able to:
+
+- View ingestion jobs
+- Monitor processing pipelines
+- View model usage
+- View system metrics
+- Monitor failures
+
+---
+
+# AI Architecture
+
+# LLM Provider Abstraction Layer
+
+The platform should NOT tightly couple routes directly to Ollama.
+
+Instead, implement a provider abstraction layer.
+
+## Example Interface
+
+```python
+class LLMProvider:
+    def generate_response(self, prompt):
+        pass
 ```
 
 ---
 
-## 8. Milestones
+## Planned Providers
 
-| Milestone | Description | Target |
-|-----------|-------------|--------|
-| M1 — Core RAG loop | Ingest PDFs + Markdown, query via CLI, Ollama-backed answers | TBD |
-| M2 — Web UI | Chat interface, source viewer, basic auth | TBD |
-| M3 — Admin & Access Control | RBAC, SSO, per-collection permissions | TBD |
-| M4 — Connectors | Confluence, Notion, S3 ingestion | TBD |
-| M5 — Production Hardening | Helm chart, observability, performance tuning | TBD |
+### OllamaProvider
+Handles:
+- Local inference
+- Embeddings
+- Chat generation
+
+### OpenAIProvider (Future)
+Handles:
+- Cloud inference
+- Failover
+- Hybrid routing
+
+### HybridProvider (Future)
+Handles:
+- Local-first routing
+- Cost optimization
+- Fallback inference
 
 ---
 
-## 9. Open Questions
+# Backend Architecture
 
-- [ ] Which vector database to use as the primary target? (Qdrant, Weaviate, pgvector, Chroma)
-- [ ] Embedding model strategy — local (via Ollama) or a dedicated embedder (sentence-transformers)?
-- [ ] Multi-tenancy model: single deployment per org or multi-tenant SaaS-style?
-- [ ] What is the initial supported deployment target: Docker Compose only, or Kubernetes from day one?
-- [ ] Reranking step in retrieval pipeline (e.g., cross-encoder reranker)?
+# Suggested Backend Structure
+
+```text
+backend/
+├── app/
+│   ├── api/
+│   ├── auth/
+│   ├── chat/
+│   ├── documents/
+│   ├── embeddings/
+│   ├── rag/
+│   ├── services/
+│   ├── workers/
+│   └── config/
+│
+├── migrations/
+├── tests/
+├── Dockerfile
+└── requirements.txt
+```
 
 ---
 
-## 10. Change Log
+# Frontend Architecture
 
-| Date | Author | Summary |
-|------|--------|---------|
-| 2026-05-29 | — | Initial draft |
+# Suggested Frontend Structure
+
+```text
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── hooks/
+│   ├── services/
+│   ├── layouts/
+│   ├── types/
+│   └── utils/
+│
+├── public/
+└── vite.config.ts
+```
+
+---
+
+# Infrastructure Structure
+
+```text
+infrastructure/
+├── docker/
+├── terraform/
+└── kubernetes/
+```
+
+---
+
+# Repository Structure
+
+```text
+bennu/
+├── frontend/
+├── backend/
+├── infrastructure/
+├── docs/
+├── screenshots/
+├── .github/
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+# Non-Functional Requirements
+
+# Scalability
+
+The architecture should support:
+
+- Horizontal API scaling
+- Background worker scaling
+- Separate inference services
+- Distributed processing
+- Future multi-tenant architecture
+
+---
+
+# Reliability
+
+The platform should implement:
+
+- Retry mechanisms
+- Queue durability
+- Health checks
+- Graceful failure handling
+- Logging
+- Monitoring
+
+---
+
+# Security
+
+The platform should consider:
+
+- JWT authentication
+- Role-based access control
+- Secret management
+- File validation
+- API rate limiting
+- Secure environment variables
+
+---
+
+# Observability
+
+The platform should support:
+
+- Structured logging
+- Metrics collection
+- Error monitoring
+- Queue visibility
+- Request tracing
+
+### Future Enhancements
+- Prometheus
+- Grafana
+- OpenTelemetry
+
+---
+
+# Deployment Strategy
+
+# Local Development
+
+Use:
+- Docker Compose
+
+Services:
+- frontend
+- backend
+- postgres
+- redis
+- ollama
+- celery worker
+
+---
+
+# Production Deployment (Future)
+
+### Kubernetes Deployment
+Components:
+- Frontend deployment
+- API deployment
+- Worker deployment
+- PostgreSQL
+- Redis
+- Ollama inference nodes
+
+### Infrastructure as Code
+- Terraform
+
+---
+
+# Architecture Priorities
+
+# Priority Order
+
+## Priority #1
+Architecture quality
+
+## Priority #2
+Documentation quality
+
+## Priority #3
+Deployment maturity
+
+## Priority #4
+Code quality
+
+## Priority #5
+UI polish
+
+---
+
+# README Requirements
+
+The repository README should include:
+
+- Executive summary
+- Architecture diagrams
+- Technology stack
+- Setup instructions
+- Deployment instructions
+- Scalability considerations
+- Security considerations
+- Future roadmap
+
+---
+
+# Consulting Positioning
+
+The project should position the developer as experienced in:
+
+- AI platform architecture
+- Self-hosted AI infrastructure
+- RAG systems
+- Cloud-native deployment
+- Cost optimization
+- Enterprise AI integration
+- Distributed systems
+- Platform engineering
+
+---
+
+# Future Enhancements
+
+## AI Enhancements
+- Multi-model routing
+- Hybrid local/cloud inference
+- Agent workflows
+- Tool calling
+- Long-term memory
+
+---
+
+## Enterprise Enhancements
+- Multi-tenancy
+- RBAC
+- Audit logs
+- SSO
+- Enterprise permissions
+
+---
+
+## Infrastructure Enhancements
+- Kubernetes autoscaling
+- GPU scheduling
+- Service mesh
+- Multi-region deployment
+- Disaster recovery
+
+---
+
+# Initial Development Roadmap
+
+# Week 1
+
+## Goals
+- Create repository
+- Create project structure
+- Configure Docker Compose
+- Configure PostgreSQL
+- Configure Redis
+- Configure Flask API
+- Configure React frontend
+
+---
+
+# Week 2
+
+## Goals
+- Integrate Ollama
+- Implement embeddings pipeline
+- Implement document upload
+- Implement document chunking
+- Store vectors in pgvector
+
+---
+
+# Week 3
+
+## Goals
+- Implement semantic search
+- Implement RAG pipeline
+- Implement chat interface
+- Add conversation history
+
+---
+
+# Week 4
+
+## Goals
+- Add authentication
+- Add monitoring
+- Add logging
+- Add retry mechanisms
+- Improve documentation
+- Create architecture diagrams
+- Polish README
+
+---
+
+# Long-Term Vision
+
+Bennu should eventually evolve into:
+
+- A consulting showcase platform
+- A reusable enterprise AI starter platform
+- A SaaS AI knowledge product
+- A hybrid AI infrastructure demo
+- A lead-generation asset for consulting services
+
+---
+
+# Recommended GitHub Description
+
+> Enterprise AI knowledge platform using RAG, vector search, and self-hosted LLM inference with Ollama.
+
+---
+
+# Repository Visibility Strategy
+
+## Repository Type
+Public
+
+## Licensing Strategy
+No license initially to preserve future SaaS and commercialization flexibility.
+
+---
+
+# Key Portfolio Messaging
+
+This project should communicate:
+
+- Senior engineering capability
+- Enterprise architecture thinking
+- AI systems expertise
+- Production deployment maturity
+- Cost optimization awareness
+- Cloud-native engineering practices
+- Consulting-level communication and documentation
+
