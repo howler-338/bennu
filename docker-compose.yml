@@ -8,6 +8,7 @@ services:
     environment:
       FLASK_ENV: development
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-key}
       DATABASE_URL: postgresql://bennu:bennu@postgres:5432/bennu
       REDIS_URL: redis://redis:6379/0
       OLLAMA_HOST: http://ollama:11434
