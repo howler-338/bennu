@@ -1,85 +1,89 @@
-from flask import Blueprint, jsonify, request
+from flask import jsonify
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
     get_jwt_identity,
     jwt_required,
 )
+from flask_smorest import Blueprint
 
 from app.auth.models import User
+from app.auth.schemas import (
+    AccessTokenSchema,
+    AuthMessageSchema,
+    LoginSchema,
+    RegisterSchema,
+    TokenSchema,
+    UserSchema,
+)
 from app.extensions import db
 
-auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth", description="Authentication")
 
 
 @auth_bp.post("/register")
-def register():
-    data = request.get_json(silent=True) or {}
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
-
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
-
-    if len(password) < 8:
-        return jsonify({"error": "Password must be at least 8 characters"}), 400
+@auth_bp.arguments(RegisterSchema)
+@auth_bp.response(201, TokenSchema)
+def register(data):
+    email = data["email"].strip().lower()
 
     if User.query.filter_by(email=email).first():
-        return jsonify({"error": "Email already registered"}), 409
+        auth_bp.abort(409, message="Email already registered")
 
     user = User(email=email)
-    user.set_password(password)
+    user.set_password(data["password"])
     db.session.add(user)
     db.session.commit()
 
-    return jsonify({"message": "User registered successfully", "user": user.to_dict()}), 201
+    return {
+        "access_token": create_access_token(identity=str(user.id)),
+        "refresh_token": create_refresh_token(identity=str(user.id)),
+        "user": user,
+    }
 
 
 @auth_bp.post("/login")
-def login():
-    data = request.get_json(silent=True) or {}
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
-
+@auth_bp.arguments(LoginSchema)
+@auth_bp.response(200, TokenSchema)
+def login(data):
+    email = data["email"].strip().lower()
     user = User.query.filter_by(email=email).first()
 
-    if not user or not user.check_password(password):
-        return jsonify({"error": "Invalid email or password"}), 401
+    if not user or not user.check_password(data["password"]):
+        auth_bp.abort(401, message="Invalid email or password")
 
     if not user.is_active:
-        return jsonify({"error": "Account is inactive"}), 403
+        auth_bp.abort(403, message="Account is inactive")
 
-    access_token = create_access_token(identity=str(user.id))
-    refresh_token = create_refresh_token(identity=str(user.id))
-
-    return jsonify({
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "user": user.to_dict(),
-    }), 200
+    return {
+        "access_token": create_access_token(identity=str(user.id)),
+        "refresh_token": create_refresh_token(identity=str(user.id)),
+        "user": user,
+    }
 
 
 @auth_bp.post("/logout")
 @jwt_required()
+@auth_bp.response(200, AuthMessageSchema)
 def logout():
-    return jsonify({"message": "Logged out successfully"}), 200
+    return {"message": "Logged out successfully"}
 
 
 @auth_bp.get("/me")
 @jwt_required()
+@auth_bp.response(200, UserSchema)
 def me():
     user_id = get_jwt_identity()
     user = db.session.get(User, user_id)
 
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        auth_bp.abort(404, message="User not found")
 
-    return jsonify({"user": user.to_dict()}), 200
+    return user
 
 
 @auth_bp.post("/refresh")
 @jwt_required(refresh=True)
+@auth_bp.response(200, AccessTokenSchema)
 def refresh():
-    user_id = get_jwt_identity()
-    access_token = create_access_token(identity=user_id)
-    return jsonify({"access_token": access_token}), 200
+    return {"access_token": create_access_token(identity=get_jwt_identity())}
