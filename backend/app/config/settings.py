@@ -15,6 +15,11 @@ class BaseConfig:
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(os.path.dirname(__file__), "../../uploads"))
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
 
+    FRONTEND_DIST = os.getenv(
+        "FRONTEND_DIST",
+        os.path.join(os.path.dirname(__file__), "../../../frontend/dist"),
+    )
+
     CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

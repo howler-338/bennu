@@ -1,4 +1,6 @@
-from flask import Flask
+import os
+
+from flask import Flask, send_from_directory
 
 from app.commands import make_admin_command
 from app.config.settings import get_config
@@ -14,8 +16,23 @@ def create_app(env: str = None) -> Flask:
     register_blueprints(app)
     celery_init_app(app)
     app.cli.add_command(make_admin_command)
+    register_frontend(app)
 
     return app
+
+
+def register_frontend(app: Flask) -> None:
+    dist = app.config.get("FRONTEND_DIST", "")
+    if not dist or not os.path.isdir(dist):
+        return
+
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve_frontend(path):
+        file_path = os.path.join(dist, path)
+        if path and os.path.isfile(file_path):
+            return send_from_directory(dist, path)
+        return send_from_directory(dist, "index.html")
 
 
 def register_extensions(app: Flask) -> None:

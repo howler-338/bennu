@@ -12,6 +12,7 @@ services:
       DATABASE_URL: postgresql://bennu:bennu@postgres:5432/bennu
       REDIS_URL: redis://redis:6379/0
       OLLAMA_HOST: http://ollama:11434
+      FRONTEND_DIST: /app/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -19,6 +20,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - ./frontend/dist:/app/dist
       - uploads_data:/app/uploads
     restart: unless-stopped
 
