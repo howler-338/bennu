@@ -43,8 +43,10 @@ class TestingConfig(BaseConfig):
     TESTING = True
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "TEST_DATABASE_URL", "postgresql://bennu:bennu@localhost:5432/bennu_test"
+        "TEST_DATABASE_URL", "postgresql://bennu:bennu@postgres:5432/bennu_test"
     )
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"
 
 
 class ProductionConfig(BaseConfig):
