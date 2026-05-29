@@ -20,34 +20,8 @@ services:
       - ./backend:/app
     restart: unless-stopped
 
-  celery_worker:
-    build:
-      context: ./backend
-    command: celery -A app.workers.celery_app worker --loglevel=info
-    environment:
-      FLASK_ENV: development
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
-      DATABASE_URL: postgresql://bennu:bennu@postgres:5432/bennu
-      REDIS_URL: redis://redis:6379/0
-      OLLAMA_HOST: http://ollama:11434
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    restart: unless-stopped
+  # celery_worker: enabled once app.workers.celery_app is wired up
+  # frontend: enabled once Vite app is scaffolded
 
   postgres:
     image: pgvector/pgvector:pg16
