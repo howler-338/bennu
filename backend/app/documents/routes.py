@@ -3,7 +3,7 @@ import uuid
 
 from flask import current_app, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from flask_smorest import Blueprint
+from flask_smorest import Blueprint, abort
 from werkzeug.utils import secure_filename
 
 from app.documents.models import Document, DocumentStatus
@@ -24,15 +24,15 @@ def _allowed_file(filename: str) -> bool:
 @documents_bp.response(201, DocumentUploadedSchema)
 def upload_document():
     if "file" not in request.files:
-        documents_bp.abort(400, message="No file provided")
+        abort(400, message="No file provided")
 
     file = request.files["file"]
 
     if not file.filename:
-        documents_bp.abort(400, message="No file selected")
+        abort(400, message="No file selected")
 
     if not _allowed_file(file.filename):
-        documents_bp.abort(415, message=f"File type not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}")
+        abort(415, message=f"File type not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}")
 
     user_id = get_jwt_identity()
     upload_folder = current_app.config["UPLOAD_FOLDER"]
@@ -80,10 +80,10 @@ def get_document(document_id):
     document = db.session.get(Document, document_id)
 
     if not document:
-        documents_bp.abort(404, message="Document not found")
+        abort(404, message="Document not found")
 
     if str(document.user_id) != user_id:
-        documents_bp.abort(403, message="Forbidden")
+        abort(403, message="Forbidden")
 
     return document
 
@@ -96,10 +96,10 @@ def delete_document(document_id):
     document = db.session.get(Document, document_id)
 
     if not document:
-        documents_bp.abort(404, message="Document not found")
+        abort(404, message="Document not found")
 
     if str(document.user_id) != user_id:
-        documents_bp.abort(403, message="Forbidden")
+        abort(403, message="Forbidden")
 
     if os.path.exists(document.file_path):
         os.remove(document.file_path)

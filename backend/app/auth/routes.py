@@ -5,7 +5,7 @@ from flask_jwt_extended import (
     get_jwt_identity,
     jwt_required,
 )
-from flask_smorest import Blueprint
+from flask_smorest import Blueprint, abort
 
 from app.auth.models import User
 from app.auth.schemas import (
@@ -28,7 +28,7 @@ def register(data):
     email = data["email"].strip().lower()
 
     if User.query.filter_by(email=email).first():
-        auth_bp.abort(409, message="Email already registered")
+        abort(409, message="Email already registered")
 
     user = User(email=email)
     user.set_password(data["password"])
@@ -50,10 +50,10 @@ def login(data):
     user = User.query.filter_by(email=email).first()
 
     if not user or not user.check_password(data["password"]):
-        auth_bp.abort(401, message="Invalid email or password")
+        abort(401, message="Invalid email or password")
 
     if not user.is_active:
-        auth_bp.abort(403, message="Account is inactive")
+        abort(403, message="Account is inactive")
 
     return {
         "access_token": create_access_token(identity=str(user.id)),
@@ -77,7 +77,7 @@ def me():
     user = db.session.get(User, user_id)
 
     if not user:
-        auth_bp.abort(404, message="User not found")
+        abort(404, message="User not found")
 
     return user
 

@@ -1,5 +1,5 @@
 from sqlalchemy import func
-from flask_smorest import Blueprint
+from flask_smorest import Blueprint, abort
 
 from app.admin.decorators import admin_required
 from app.admin.schemas import (
@@ -32,7 +32,7 @@ def list_users():
 def update_user(args, user_id):
     user = db.session.get(User, user_id)
     if not user:
-        admin_bp.abort(404, message="User not found")
+        abort(404, message="User not found")
     if "is_active" in args:
         user.is_active = args["is_active"]
     if "role" in args:
@@ -47,7 +47,7 @@ def update_user(args, user_id):
 def delete_user(user_id):
     user = db.session.get(User, user_id)
     if not user:
-        admin_bp.abort(404, message="User not found")
+        abort(404, message="User not found")
     db.session.delete(user)
     db.session.commit()
     return {"message": "User deleted"}
@@ -108,7 +108,7 @@ def failed_documents():
 def reprocess_document(document_id):
     document = db.session.get(Document, document_id)
     if not document:
-        admin_bp.abort(404, message="Document not found")
+        abort(404, message="Document not found")
     document.status = DocumentStatus.PENDING
     db.session.commit()
     from app.workers.document_tasks import process_document
