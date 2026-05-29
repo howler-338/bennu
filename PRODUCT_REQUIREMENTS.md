@@ -64,56 +64,73 @@ The project should communicate:
 ## Frontend
 
 ### Core Technologies
-- React
+- React 18
 - Vite
 - TypeScript
 - Tailwind CSS
+- Zustand (auth state, persisted to localStorage)
+- React Router v6
+
+### Structure
+```
+frontend/
+├── src/
+│   ├── api/          # Typed fetch wrappers per domain
+│   ├── store/        # Zustand auth store
+│   ├── components/   # Shared UI components
+│   ├── layouts/      # AppLayout (sidebar nav), AuthLayout
+│   ├── pages/        # Login, Register, Documents, Search, Chat
+│   ├── types/        # Shared TypeScript interfaces
+│   └── hooks/        # Custom hooks (future)
+├── index.html
+└── vite.config.ts    # Proxies /api to backend in dev
+```
 
 ### Future Enhancements
-- Zustand or Redux
-- React Query
-- Component library
+- React Query for server state caching
+- Component library (shadcn/ui)
 - Dark mode support
+- Streaming chat responses
 
 ---
 
 ## Backend
 
 ### Core Technologies
-- Flask
+- Flask 3.x
 - Flask-Smorest (OpenAPI/Swagger docs, request validation)
 - marshmallow (serialization and schema validation)
-- Flask-SQLAlchemy + Flask-Migrate
+- Flask-SQLAlchemy + Flask-Migrate (Alembic)
 - Flask-JWT-Extended
-- Celery
-- Redis
+- Flask-Limiter (Redis-backed rate limiting)
+- Celery 5 + Redis (async task queue)
+- Gunicorn (production WSGI server, 4 workers)
 
 ### Responsibilities
 - API gateway
-- Authentication
+- Authentication + RBAC
 - Chat orchestration
 - Document management
 - RAG coordination
-- Model abstraction layer
 - Background job management
+- Admin operations
 
 ---
 
 ## Database
 
 ### Primary Database
-- PostgreSQL
+- PostgreSQL 16
 
 ### Vector Storage
-- pgvector
+- pgvector extension (768-dim vectors, cosine similarity)
 
 ### Responsibilities
-- User data
-- Metadata
-- Document indexing
-- Embedding storage
-- Conversation history
-- Audit logs
+- User data and roles
+- Document metadata and status lifecycle
+- Document chunks with embeddings
+- Conversation history (future)
+- Audit logs (future)
 
 ---
 
@@ -122,54 +139,63 @@ The project should communicate:
 ### Local Inference
 - Ollama
 
-### Suggested Models
-#### Chat Models
-- Llama 3 8B
-- Mistral 7B
-- Phi-3
+### Models in Use
+#### Embedding Model
+- `nomic-embed-text` — 768-dim, fast, well-suited for RAG
 
-#### Embedding Models
-- nomic-embed-text
-- bge-small
-- mxbai-embed-large
+#### Chat Model
+- `llama3.2:3b` — 3B params, ~2GB, fast response times
+
+### Future Enhancements
+- Multi-model routing
+- Hybrid local/cloud inference (OpenAI fallback)
+- Larger chat models (llama3:8b, mistral:7b)
 
 ---
 
 ## Infrastructure
 
 ### Local Development
-- Docker
-- Docker Compose
+- Docker Compose (all services)
+- Vite dev server (frontend, with /api proxy)
 
-### Production Infrastructure (Future)
-- Kubernetes
-- Terraform
-- GitHub Actions
+### Production (DigitalOcean VPS)
+- Docker Compose on a single VPS droplet
+- Gunicorn for Flask
+- Separate Celery worker + Celery beat containers
+- All secrets via environment variables
+
+### Future Infrastructure
+- GitHub Actions CI/CD
+- Terraform for infrastructure provisioning
+- Multi-droplet horizontal scaling
 
 ---
 
 # High-Level Architecture
 
-```text
-[ React Frontend ]
+```
+[ React Frontend (Vite / Tailwind) ]
         |
-        v
-[ Flask API Gateway ]
+        v (served from Flask on port 8000)
+[ Flask API Gateway (Gunicorn) ]
         |
-        +--> Auth Service
-        |
-        +--> Document Service
-        |
-        +--> Chat Service
-        |
-        +--> RAG Pipeline
-        |
-        +--> Celery Workers
-                  |
-                  +--> Embedding Jobs
-                  +--> OCR Jobs
-                  +--> Chunking Jobs
-                  +--> Indexing Jobs
+        ├── /api/auth       → JWT auth (register, login, refresh, me)
+        ├── /api/documents  → Upload, list, get, delete
+        ├── /api/search     → Semantic vector search
+        ├── /api/chat       → RAG chat with context injection
+        └── /api/admin      → Admin dashboard (RBAC)
+                |
+                ├── PostgreSQL + pgvector  (documents, chunks, embeddings)
+                ├── Redis                  (Celery broker + rate limiter)
+                └── Celery Workers
+                        |
+                        ├── process_document  → extract → chunk → embed → store
+                        └── retry_stuck_documents (beat, every 5 min)
+                                |
+                                └── Ollama
+                                        ├── nomic-embed-text  (embeddings)
+                                        └── llama3.2:3b       (chat generation)
 ```
 
 ---
@@ -178,7 +204,7 @@ The project should communicate:
 
 # MVP Scope
 
-The MVP should prioritize architecture quality and backend workflows over UI complexity.
+The MVP prioritizes architecture quality and backend workflows over UI complexity.
 
 ---
 
@@ -197,11 +223,12 @@ Users should be able to:
 - Access token + refresh token pattern
 - Password hashing via Werkzeug
 - Protected routes via `@jwt_required()` decorator
+- Role field on users: `USER` | `ADMIN`
 - Endpoints: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/refresh`
+- Rate limited: 5/min on register, 10/min on login
 
 ### Future Enhancements
-- OAuth
-- SSO
+- OAuth / SSO
 - Multi-factor authentication
 - Enterprise identity providers
 
@@ -223,415 +250,236 @@ Users should be able to:
 - Files stored in Docker volume (`uploads_data`)
 - Document status lifecycle: `pending → processing → ready → failed`
 - Endpoints: `POST /api/documents`, `GET /api/documents`, `GET /api/documents/<id>`, `DELETE /api/documents/<id>`
-- All routes JWT-protected
-
-### Constraints
-- File size limit: 50MB
-- Allowed MIME types: PDF, plain text, DOCX
-- Virus scanning (future)
+- All routes JWT-protected and user-scoped
+- Upload rate limited: 20/min
 
 ---
 
-## Feature 3 — Document Processing Pipeline 🔄 In Progress
+## Feature 3 — Document Processing Pipeline ✅ Complete
 
 ### Requirements
 Uploaded documents should:
 
-1. Be parsed
-2. Be chunked
-3. Generate embeddings
-4. Store vectors in pgvector
-5. Become searchable
+1. Be parsed ✅
+2. Be chunked ✅
+3. Generate embeddings ✅
+4. Store vectors in pgvector ✅
+5. Become searchable ✅
 
-### Processing Requirements
-- Async processing using Celery
-- Retry mechanisms
-- Job status tracking
-- Failure handling
-- Queue monitoring
+### Implementation Notes
+- Async processing via Celery worker triggered immediately on upload
+- Text extraction: `pypdf` (PDF), `python-docx` (DOCX), plain read (TXT)
+- Chunking: 1000-char chunks with 200-char overlap
+- Embeddings: `nomic-embed-text` via Ollama `/api/embeddings` (768 dimensions)
+- Vectors stored in `document_chunks` table with pgvector `Vector(768)` column
+- Retry: up to 3 attempts with exponential backoff; marks `FAILED` on exhaustion
+- Celery beat retries documents stuck in `PROCESSING` for >10 min (every 5 min)
 
 ---
 
-## Feature 4 — Semantic Search
+## Feature 4 — Semantic Search ✅ Complete
 
 ### Requirements
 Users should be able to:
 
-- Search documents semantically
-- Retrieve relevant chunks
-- Filter search results
-- View similarity scores
+- Search documents semantically ✅
+- Retrieve relevant chunks ✅
+- View similarity scores ✅
 
-### Technical Requirements
-- Vector similarity search
-- Embedding generation
-- Search ranking
+### Implementation Notes
+- `POST /api/search` — accepts `query` string and optional `limit` (default 5)
+- Query is embedded with `nomic-embed-text` via Ollama
+- pgvector cosine distance search over user-scoped chunks
+- Results include: chunk content, similarity score (0–1), source document metadata
+- JWT-protected and scoped to authenticated user's documents
 
 ---
 
-## Feature 5 — RAG Chat
+## Feature 5 — RAG Chat ✅ Complete
 
 ### Requirements
 Users should be able to:
 
-- Ask questions about uploaded documents
-- Receive contextual answers
-- Receive cited responses
-- Maintain conversation history
+- Ask questions about uploaded documents ✅
+- Receive contextual answers ✅
+- See source attribution ✅
+- Maintain conversation history ✅
 
-### System Requirements
-- Context retrieval
-- Prompt construction
-- Model routing
-- Token optimization
-- Streaming responses (future)
+### Implementation Notes
+- `POST /api/chat` — accepts `message`, optional `history` array, optional `limit`
+- Embeds query → retrieves top-k chunks → injects as system context → calls `llama3.2:3b`
+- System prompt instructs model to answer only from provided context
+- Multi-turn history supported via `history` field (client-managed)
+- Sources returned with each reply: document filename + chunk index
+- Falls back to a general assistant prompt when no documents exist
+
+### Future Enhancements
+- Streaming responses
+- Server-side conversation persistence
+- Token budget management for long histories
 
 ---
 
-## Feature 6 — Admin Dashboard
+## Feature 6 — Admin Dashboard ✅ Complete
 
 ### Requirements
 Administrators should be able to:
 
-- View ingestion jobs
-- Monitor processing pipelines
-- View model usage
-- View system metrics
-- Monitor failures
+- List all users ✅
+- Activate / deactivate users ✅
+- Change user roles ✅
+- Delete users ✅
+- View system stats (document counts by status) ✅
+- View failed documents with owner info ✅
+- Reprocess failed documents ✅
+
+### Implementation Notes
+- All `/api/admin/*` routes require `UserRole.ADMIN`
+- `admin_required` decorator verifies JWT + role
+- `flask make-admin <email>` CLI command to bootstrap first admin
+- Stats endpoint aggregates document counts across all users
+- Endpoints: `GET /api/admin/users`, `PATCH /api/admin/users/<id>`, `DELETE /api/admin/users/<id>`, `GET /api/admin/stats`, `GET /api/admin/documents/failed`, `POST /api/admin/documents/<id>/reprocess`
 
 ---
 
 # AI Architecture
 
-# LLM Provider Abstraction Layer
+## Provider Approach
 
-The platform should NOT tightly couple routes directly to Ollama.
+The platform currently uses Ollama directly via HTTP (`/api/embeddings`, `/api/chat`). The `services/embedder.py` and `services/llm.py` modules are the abstraction boundary — LLM provider details are isolated from business logic.
 
-Instead, implement a provider abstraction layer.
-
-## Example Interface
+## Future Provider Abstraction
 
 ```python
 class LLMProvider:
-    def generate_response(self, prompt):
-        pass
+    def embed(self, text: str) -> list[float]: ...
+    def chat(self, messages: list) -> str: ...
 ```
 
----
-
-## Planned Providers
-
-### OllamaProvider
-Handles:
-- Local inference
-- Embeddings
-- Chat generation
-
-### OpenAIProvider (Future)
-Handles:
-- Cloud inference
-- Failover
-- Hybrid routing
-
-### HybridProvider (Future)
-Handles:
-- Local-first routing
-- Cost optimization
-- Fallback inference
+Planned providers:
+- `OllamaProvider` — local inference (current)
+- `OpenAIProvider` — cloud inference / failover
+- `HybridProvider` — local-first with cloud fallback for cost optimization
 
 ---
 
 # Backend Architecture
 
-# Suggested Backend Structure
-
-```text
+```
 backend/
 ├── app/
-│   ├── api/
-│   ├── auth/
-│   ├── chat/
-│   ├── documents/
-│   ├── embeddings/
-│   ├── rag/
-│   ├── services/
-│   ├── workers/
-│   └── config/
-│
-├── migrations/
-├── tests/
+│   ├── admin/        # Admin endpoints + RBAC decorator
+│   ├── api/          # Health check
+│   ├── auth/         # JWT auth, User model, UserRole
+│   ├── chat/         # RAG chat endpoint
+│   ├── documents/    # Upload, list, get, delete
+│   ├── embeddings/   # DocumentChunk model + pgvector
+│   ├── search/       # Semantic search endpoint
+│   ├── services/     # text_extractor, chunker, embedder, llm
+│   ├── workers/      # Celery app + document tasks + beat schedule
+│   └── config/       # Environment-based config classes
+├── migrations/       # Alembic migrations
+├── tests/            # pytest suite (41 tests)
+├── gunicorn.conf.py  # Production WSGI config
 ├── Dockerfile
 └── requirements.txt
 ```
 
 ---
 
-# Frontend Architecture
-
-# Suggested Frontend Structure
-
-```text
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── hooks/
-│   ├── services/
-│   ├── layouts/
-│   ├── types/
-│   └── utils/
-│
-├── public/
-└── vite.config.ts
-```
-
----
-
-# Infrastructure Structure
-
-```text
-infrastructure/
-├── docker/
-├── terraform/
-└── kubernetes/
-```
-
----
-
-# Repository Structure
-
-```text
-bennu/
-├── frontend/
-├── backend/
-├── infrastructure/
-├── docs/
-├── screenshots/
-├── .github/
-├── docker-compose.yml
-└── README.md
-```
-
----
-
 # Non-Functional Requirements
 
-# Scalability
+## Scalability
 
-The architecture should support:
+The architecture supports:
 
-- Horizontal API scaling
-- Background worker scaling
-- Separate inference services
-- Distributed processing
-- Future multi-tenant architecture
-
----
-
-# Reliability
-
-The platform should implement:
-
-- Retry mechanisms
-- Queue durability
-- Health checks
-- Graceful failure handling
-- Logging
-- Monitoring
+- Horizontal API scaling (Gunicorn workers, stateless JWT)
+- Background worker scaling (additional Celery worker containers)
+- Separate inference service (Ollama runs independently)
+- pgvector scales with PostgreSQL
 
 ---
 
-# Security
+## Reliability
 
-The platform should consider:
+Implemented:
+- Celery retry with exponential backoff (3 attempts)
+- Celery beat for stuck document recovery (every 5 min)
+- Document status lifecycle with explicit failure state
+- Health check endpoint (`GET /api/health`)
 
-- JWT authentication
-- Role-based access control
-- Secret management
-- File validation
-- API rate limiting
-- Secure environment variables
+Future:
+- Queue visibility dashboard
+- Dead-letter queue
+- Circuit breaker for Ollama
 
 ---
 
-# Observability
+## Security
 
-The platform should support:
+Implemented:
+- JWT authentication (access + refresh tokens)
+- Role-based access control (`USER` / `ADMIN`)
+- Redis-backed rate limiting (Flask-Limiter)
+- File type and size validation
+- User-scoped data access (no cross-user data leakage)
+- Secrets via environment variables (`.env.example` documented)
 
-- Structured logging
-- Metrics collection
-- Error monitoring
-- Queue visibility
-- Request tracing
+Future:
+- Virus scanning on upload
+- Audit logging
+- OAuth / SSO
+- mTLS between services
 
-### Future Enhancements
-- Prometheus
-- Grafana
-- OpenTelemetry
+---
+
+## Observability
+
+Implemented:
+- Structured JSON logging (production)
+- Document processing status lifecycle
+- Celery task result backend (Redis)
+
+Future:
+- Prometheus metrics
+- Grafana dashboards
+- OpenTelemetry tracing
+- Alerting on FAILED document rate
 
 ---
 
 # Deployment Strategy
 
-# Local Development
+## Local Development
 
-Use:
-- Docker Compose
+```bash
+docker compose up -d        # Start all services
+cd frontend && npm run dev  # Frontend with HMR at localhost:5173
+```
 
-Services:
-- frontend
-- backend
-- postgres
-- redis
-- ollama
-- celery worker
+Services: backend (Gunicorn), celery_worker, celery_beat, postgres, redis, ollama
 
 ---
 
-# Production Deployment (Future)
+## Production — DigitalOcean VPS
 
-### Kubernetes Deployment
-Components:
-- Frontend deployment
-- API deployment
-- Worker deployment
-- PostgreSQL
-- Redis
-- Ollama inference nodes
+Deployment model: Docker Compose on a single droplet.
 
-### Infrastructure as Code
-- Terraform
+Steps:
+1. Provision droplet (Ubuntu, 4GB+ RAM for Ollama)
+2. Install Docker + Docker Compose
+3. Clone repo, copy `.env.example` → `.env`, set real secrets
+4. `cd frontend && npm run build` (build static assets)
+5. `docker compose up -d`
+6. `docker compose exec backend flask db upgrade`
+7. `docker compose exec backend flask make-admin <email>`
 
----
+All services run in containers. Frontend is served as static files by Flask/Gunicorn.
 
-# Architecture Priorities
-
-# Priority Order
-
-## Priority #1
-Architecture quality
-
-## Priority #2
-Documentation quality
-
-## Priority #3
-Deployment maturity
-
-## Priority #4
-Code quality
-
-## Priority #5
-UI polish
-
----
-
-# README Requirements
-
-The repository README should include:
-
-- Executive summary
-- Architecture diagrams
-- Technology stack
-- Setup instructions
-- Deployment instructions
-- Scalability considerations
-- Security considerations
-- Future roadmap
-
----
-
-# Consulting Positioning
-
-The project should position the developer as experienced in:
-
-- AI platform architecture
-- Self-hosted AI infrastructure
-- RAG systems
-- Cloud-native deployment
-- Cost optimization
-- Enterprise AI integration
-- Distributed systems
-- Platform engineering
-
----
-
-# Future Enhancements
-
-## AI Enhancements
-- Multi-model routing
-- Hybrid local/cloud inference
-- Agent workflows
-- Tool calling
-- Long-term memory
-
----
-
-## Enterprise Enhancements
-- Multi-tenancy
-- RBAC
-- Audit logs
-- SSO
-- Enterprise permissions
-
----
-
-## Infrastructure Enhancements
-- Kubernetes autoscaling
-- GPU scheduling
-- Service mesh
-- Multi-region deployment
-- Disaster recovery
-
----
-
-# Initial Development Roadmap
-
-# Week 1 ✅ Complete
-
-## Goals
-- Create repository ✅
-- Create project structure ✅
-- Configure Docker Compose ✅
-- Configure PostgreSQL ✅
-- Configure Redis ✅
-- Configure Flask API ✅
-- Configure React frontend (deferred to Week 2)
-
----
-
-# Week 2 🔄 In Progress
-
-## Goals
-- Implement authentication ✅
-- Implement document upload ✅
-- Integrate Flask-Smorest + OpenAPI docs ✅
-- Implement document processing pipeline (Celery + embeddings)
-- Implement document chunking
-- Store vectors in pgvector
-- Integrate Ollama
-
----
-
-# Week 3
-
-## Goals
-- Implement semantic search
-- Implement RAG pipeline
-- Implement chat interface
-- Add conversation history
-
----
-
-# Week 4
-
-## Goals
-- Add monitoring
-- Add logging
-- Add retry mechanisms
-- Improve documentation
-- Create architecture diagrams
-- Polish README
-- Scaffold React frontend
+### Future
+- GitHub Actions for automated builds and deploy-on-push
+- Terraform for droplet provisioning
+- Managed PostgreSQL (DigitalOcean) for production database
 
 ---
 
@@ -643,8 +491,28 @@ The project should position the developer as experienced in:
 | API framework | Flask-Smorest | Auto-generates OpenAPI docs, marshmallow validation, clean blueprint structure |
 | Auth strategy | JWT (access + refresh tokens) | Stateless, scalable, enterprise-standard |
 | Local dev | Docker Compose | Zero-setup, consistent across machines, close to production |
-| Embedding model | TBD (nomic-embed-text or bge-small via Ollama) | Decision pending Feature 3 implementation |
-| LLM for chat | TBD (Llama 3 8B or Mistral 7B via Ollama) | Decision pending Feature 5 implementation |
+| Embedding model | `nomic-embed-text` (768-dim via Ollama) | Fast, well-suited for RAG, runs on CPU |
+| Chat model | `llama3.2:3b` (via Ollama) | Fast on modest hardware, good quality for document Q&A |
+| Frontend state | Zustand | Minimal, hook-based, no boilerplate |
+| Frontend styling | Tailwind CSS | Utility-first, no component library overhead |
+| WSGI server | Gunicorn (4 workers) | Production-grade, replaces Flask dev server |
+| Rate limiting | Flask-Limiter + Redis | Protects auth and upload endpoints from abuse |
+| Deployment target | DigitalOcean VPS (Docker Compose) | Simple, cost-effective, avoids Kubernetes complexity |
+
+---
+
+# Testing
+
+## Coverage
+- 41 tests, all passing
+- Unit tests: `chunker`, `text_extractor`, `embedder` (mocked Ollama)
+- Integration tests: auth, documents, admin (real PostgreSQL test DB)
+- Celery tasks mocked in tests (no Redis dependency)
+
+## Running Tests
+```bash
+docker compose exec backend pytest -v
+```
 
 ---
 
@@ -660,31 +528,51 @@ Bennu should eventually evolve into:
 
 ---
 
-# Recommended GitHub Description
+# Future Enhancements
 
-> Enterprise AI knowledge platform using RAG, vector search, and self-hosted LLM inference with Ollama.
+## AI Enhancements
+- Multi-model routing
+- Hybrid local/cloud inference
+- Agent workflows with tool calling
+- Long-term memory / conversation persistence
+- Streaming chat responses
+
+## Enterprise Enhancements
+- Multi-tenancy
+- Audit logs
+- SSO / OAuth
+- Enterprise permissions
+
+## Infrastructure Enhancements
+- GitHub Actions CI/CD
+- Terraform for DigitalOcean provisioning
+- Managed PostgreSQL
+- S3-compatible object storage for uploaded files
+- Monitoring stack (Prometheus + Grafana)
 
 ---
 
-# Repository Visibility Strategy
+# Repository
 
-## Repository Type
-Public
+## Visibility
+Public — portfolio showcase
 
-## Licensing Strategy
-No license initially to preserve future SaaS and commercialization flexibility.
+## License
+None initially, to preserve SaaS and commercialization flexibility.
+
+## GitHub Description
+> Enterprise AI knowledge platform using RAG, vector search, and self-hosted LLM inference with Ollama.
 
 ---
 
 # Key Portfolio Messaging
 
-This project should communicate:
+This project communicates:
 
 - Senior engineering capability
 - Enterprise architecture thinking
-- AI systems expertise
-- Production deployment maturity
-- Cost optimization awareness
+- AI systems expertise (RAG, embeddings, vector search)
+- Production deployment maturity (Gunicorn, rate limiting, structured logging)
+- Cost optimization (self-hosted inference, no cloud AI spend)
 - Cloud-native engineering practices
 - Consulting-level communication and documentation
-
