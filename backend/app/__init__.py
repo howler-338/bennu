@@ -27,8 +27,10 @@ def register_blueprints(app: Flask) -> None:
     from app.api.health import health_bp
     from app.auth.routes import auth_bp
     from app.documents.routes import documents_bp
+    from app.search.routes import search_bp
     import app.embeddings.models  # noqa: ensure DocumentChunk is in SQLAlchemy metadata
 
     smorest_api.register_blueprint(health_bp)
     smorest_api.register_blueprint(auth_bp)
     smorest_api.register_blueprint(documents_bp)
+    smorest_api.register_blueprint(search_bp)
