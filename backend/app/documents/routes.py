@@ -57,6 +57,9 @@ def upload_document():
     db.session.add(document)
     db.session.commit()
 
+    from app.workers.document_tasks import process_document
+    process_document.delay(str(document.id))
+
     return {"message": "Document uploaded successfully", "document": document}
 
 

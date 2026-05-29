@@ -15,6 +15,12 @@ class BaseConfig:
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(os.path.dirname(__file__), "../../uploads"))
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
 
+    CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+    OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
+
     API_TITLE = "Bennu API"
     API_VERSION = "v1"
     OPENAPI_VERSION = "3.0.3"
