@@ -33,3 +33,33 @@ export interface Source {
   filename: string
   chunk_index: number
 }
+
+export interface AdminUser {
+  id: string
+  email: string
+  is_active: boolean
+  role: 'user' | 'admin'
+  created_at: string
+}
+
+export interface AdminStats {
+  documents: {
+    pending: number
+    processing: number
+    ready: number
+    failed: number
+    total: number
+  }
+  users: {
+    total: number
+    active: number
+  }
+}
+
+export interface FailedDocument {
+  id: string
+  original_filename: string
+  owner_email: string
+  created_at: string
+  updated_at: string
+}

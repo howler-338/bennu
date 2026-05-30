@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminRoute from './components/AdminRoute'
 import AppLayout from './layouts/AppLayout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DocumentsPage from './pages/DocumentsPage'
 import SearchPage from './pages/SearchPage'
 import ChatPage from './pages/ChatPage'
+import AdminPage from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -19,6 +21,9 @@ export default function App() {
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
           </Route>
         </Route>
       </Routes>

@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 
-const nav = [
+const baseNav = [
   { to: '/documents', label: 'Documents' },
   { to: '/search', label: 'Search' },
   { to: '/chat', label: 'Chat' },
@@ -9,6 +9,7 @@ const nav = [
 
 export default function AppLayout() {
   const { user, logout } = useAuthStore()
+  const nav = user?.role === 'admin' ? [...baseNav, { to: '/admin', label: 'Admin' }] : baseNav
   const navigate = useNavigate()
 
   function handleLogout() {
