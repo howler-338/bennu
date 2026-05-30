@@ -227,6 +227,9 @@ Users should be able to:
 - Endpoints: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/refresh`
 - Rate limited: 5/min on register, 10/min on login
 
+### Known Gaps
+- No expired token handling on the frontend — when the JWT expires, API calls fail silently with no redirect to `/login`. The API client (`frontend/src/api/client.ts`) should intercept 401 responses, clear auth state, and redirect to `/login`.
+
 ### Future Enhancements
 - OAuth / SSO
 - Multi-factor authentication

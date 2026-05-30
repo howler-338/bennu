@@ -8,6 +8,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   const res = await fetch(`/api${path}`, { ...init, headers })
   if (!res.ok) {
+    if (res.status === 401) {
+      useAuthStore.getState().logout()
+      window.location.href = '/login'
+    }
     const body = await res.json().catch(() => ({}))
     throw new Error(body.message || `HTTP ${res.status}`)
   }
