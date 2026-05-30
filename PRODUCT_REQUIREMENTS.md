@@ -228,7 +228,7 @@ Users should be able to:
 - Rate limited: 5/min on register, 10/min on login
 
 ### Known Gaps
-- No expired token handling on the frontend — when the JWT expires, API calls fail silently with no redirect to `/login`. The API client (`frontend/src/api/client.ts`) should intercept 401 responses, clear auth state, and redirect to `/login`.
+- ~~No expired token handling on the frontend~~ ✅ Fixed — `frontend/src/api/client.ts` intercepts 401 responses, clears auth state, and redirects to `/login`.
 
 ### Future Enhancements
 - OAuth / SSO
