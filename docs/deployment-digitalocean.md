@@ -41,11 +41,11 @@ The 3 GB headroom lets Ollama keep both models hot — no swapping between embed
 Internet
    │
    ▼ :80 / :443
-[ Nginx ]  ──── serves /assets/* directly from frontend/dist
+[ Nginx container ]  ──── serves /assets/* directly from frontend/dist
    │
-   │ proxy /api/* and /docs
-   ▼ :8000
-[ Flask + Gunicorn (4 workers) ]
+   │ proxy /api/* and /docs  (Docker network: backend:8000)
+   ▼
+[ Flask + Gunicorn container ]
    │
    ├── PostgreSQL + pgvector  (postgres_data volume)
    ├── Redis                  (Celery broker + rate limiter)
@@ -55,6 +55,8 @@ Internet
            ├── nomic-embed-text
            └── llama3.2:3b
 ```
+
+All services run in Docker containers on the same network. Nginx resolves `backend:8000` via Docker DNS.
 
 ---
 
@@ -102,7 +104,7 @@ doctl compute firewall create \
   --outbound-rules "protocol:tcp,ports:all,address:0.0.0.0/0 protocol:udp,ports:all,address:0.0.0.0/0"
 ```
 
-Ports **5432** (Postgres), **6379** (Redis), **11434** (Ollama), and **8000** (Gunicorn) must **never** be exposed publicly — they communicate only over the internal Docker network.
+Ports **5432** (Postgres), **6379** (Redis), **11434** (Ollama), and **8000** (Gunicorn) are internal to the Docker network and must never be exposed publicly.
 
 ---
 
@@ -111,14 +113,20 @@ Ports **5432** (Postgres), **6379** (Redis), **11434** (Ollama), and **8000** (G
 ```bash
 ssh root@<reserved-ip>
 
-# Install Docker
+# Docker
 apt update && apt install -y docker.io docker-compose-plugin
+systemctl enable docker
+systemctl start docker
 
-# Install Nginx and Certbot
-apt install -y nginx certbot python3-certbot-nginx
+# Certbot (runs on host to obtain SSL certs, mounted into Nginx container)
+apt install -y certbot
 
-# Create backup directory
-mkdir -p /backups
+# Node.js LTS (to build the frontend)
+curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+apt install -y nodejs
+
+# Directories
+mkdir -p /backups /var/www/certbot
 ```
 
 ---
@@ -138,53 +146,52 @@ nano .env
 ```
 
 Key variables to set:
-```
+
+```env
 FLASK_ENV=production
 SECRET_KEY=<generate: python3 -c "import secrets; print(secrets.token_hex(32))">
 JWT_SECRET_KEY=<generate: python3 -c "import secrets; print(secrets.token_hex(32))">
 DATABASE_URL=postgresql://bennu:bennu@postgres:5432/bennu
 REDIS_URL=redis://redis:6379/0
 OLLAMA_HOST=http://ollama:11434
+EMBED_MODEL=nomic-embed-text
+CHAT_MODEL=llama3.2:3b
 FRONTEND_DIST=/app/dist
 ```
 
 ---
 
-## Step 6 — Configure Nginx
-
-Copy the config and replace `DOMAIN` with your actual domain:
-
-```bash
-cp infrastructure/nginx/nginx.conf /etc/nginx/conf.d/bennu.conf
-sed -i 's/DOMAIN/yourdomain.com/g' /etc/nginx/conf.d/bennu.conf
-```
-
-Test and reload:
-
-```bash
-nginx -t && systemctl reload nginx
-```
-
----
-
-## Step 7 — Get a Free SSL Certificate
-
-```bash
-certbot --nginx -d yourdomain.com
-```
-
-Certbot automatically edits the nginx config with the certificate paths and sets up auto-renewal via a systemd timer.
-
-Verify auto-renewal: `certbot renew --dry-run`
-
----
-
-## Step 8 — Build the Frontend
+## Step 6 — Build the Frontend
 
 ```bash
 cd /root/bennu/frontend
-npm install && npm run build
+npm install
+npm run build
 cd ..
+```
+
+The build output lands in `frontend/dist/`, which is mounted into the Nginx container at runtime.
+
+---
+
+## Step 7 — Get SSL Certificate
+
+Certbot runs on the host using standalone mode to obtain the initial certificate (before Nginx starts):
+
+```bash
+certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
+```
+
+Certs are stored in `/etc/letsencrypt/live/yourdomain.com/` and mounted read-only into the Nginx container.
+
+---
+
+## Step 8 — Configure Nginx
+
+Replace the `DOMAIN` placeholder in the nginx config with your actual domain:
+
+```bash
+sed -i 's/DOMAIN/yourdomain.com/g' /root/bennu/infrastructure/nginx/nginx.conf
 ```
 
 ---
@@ -192,15 +199,14 @@ cd ..
 ## Step 9 — Start All Services
 
 ```bash
-docker compose up -d
-```
-
-Verify all containers are running:
-```bash
+cd /root/bennu
+docker compose --profile production up -d
 docker compose ps
 ```
 
-Expected services: `backend`, `celery_worker`, `celery_beat`, `postgres`, `redis`, `ollama`
+Expected services: `backend`, `celery_worker`, `celery_beat`, `postgres`, `redis`, `ollama`, `nginx`
+
+> **Note:** `docker compose up -d` without `--profile production` starts all services except Nginx — this is the correct mode for local development where SSL certs don't exist.
 
 ---
 
@@ -233,7 +239,23 @@ docker compose exec backend flask make-admin your@email.com
 
 ---
 
-## Step 13 — Enable Automated Backups
+## Step 13 — SSL Auto-Renewal
+
+Certbot uses the Nginx container to serve the ACME challenge for renewals. Add a cron job:
+
+```bash
+crontab -e
+```
+
+Add:
+
+```
+0 3 * * * certbot renew --webroot -w /var/www/certbot --quiet && docker compose -f /root/bennu/docker-compose.yml restart nginx
+```
+
+---
+
+## Step 14 — Enable Automated Backups
 
 Enable from the DigitalOcean control panel: **Droplet → Backups → Enable** ($14/mo, weekly snapshots).
 
@@ -242,6 +264,8 @@ Add a daily Postgres dump:
 ```bash
 crontab -e
 ```
+
+Add:
 
 ```
 0 2 * * * cd /root/bennu && docker compose exec -T postgres pg_dump -U bennu bennu | gzip > /backups/bennu_$(date +\%F).sql.gz
@@ -255,16 +279,20 @@ crontab -e
 # View logs
 docker compose logs backend -f
 docker compose logs celery_worker -f
+docker compose logs nginx -f
 
 # Restart a service
 docker compose restart backend
+docker compose restart nginx
+
+# Check all container status
+docker compose --profile production ps
 
 # Deploy an update
 git pull
-cd frontend && npm run build && cd ..
+cd frontend && npm install && npm run build && cd ..
 docker compose up -d --build backend
-
-# Run migrations after update
+docker compose restart nginx
 docker compose exec backend flask db upgrade
 
 # Run tests
